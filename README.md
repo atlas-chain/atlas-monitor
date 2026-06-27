@@ -65,7 +65,6 @@ Optional environment variables:
 | `DECODER_URL` | `https://decoder.atlas.arkiv-global.net` | Transaction decoder base URL |
 | `ATLAS_SCANNER_URL` | `https://scanner.atlas.arkiv-global.net` | Atlas scanner UI URL |
 | `ATLAS_SCANNER_API_URL` | `https://scanner.atlas.arkiv-global.net/api/blocks?limit=1` | Atlas scanner head API |
-| `ATLAS_SCANNER_TRANSACTIONS_API_URL` | `https://scanner.atlas.arkiv-global.net/api/transactions?limit=1` | Atlas scanner latest transaction API |
 | `ATLAS_FAUCET_URL` | `https://faucet.atlas.arkiv-global.net` | Atlas faucet URL |
 | `PLANNER_URL` / `ATLAS_PLANNER_URL` | unset | Protocol planner base URL |
 | `CHAIN_FRESH_SECONDS` | `16` | Healthy chain-head age threshold |

@@ -240,20 +240,6 @@ h2 {
   background: rgba(8, 8, 7, 0.42);
 }
 
-.metric-grid .wide-metric {
-  grid-column: 1 / -1;
-}
-
-.metric-link {
-  display: block;
-  color: var(--green);
-  text-decoration: none;
-}
-
-.metric-link:hover {
-  text-decoration: underline;
-}
-
 dt {
   margin-bottom: 7px;
   color: var(--dim);
