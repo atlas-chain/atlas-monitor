@@ -1,0 +1,15 @@
+{
+  "name": "atlas-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Live Atlas and Arkiv network monitor.",
+  "scripts": {
+    "dev": "node server/index.js",
+    "start": "node server/index.js",
+    "check": "node --check server/index.js && node --check public/app.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

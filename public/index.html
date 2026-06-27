@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Atlas Monitor</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar" aria-label="Monitor controls">
+        <div>
+          <p class="eyebrow">Atlas Monitor</p>
+          <h1>Live Network Cockpit</h1>
+        </div>
+        <div class="topbar-actions">
+          <div class="segmented" id="networkTabs" aria-label="Network"></div>
+          <button class="icon-button" id="refreshButton" type="button" title="Refresh now" aria-label="Refresh now">
+            <span aria-hidden="true">&#8635;</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="status-band" aria-live="polite">
+        <div class="signal-core" id="signalCore">
+          <span class="signal-ring"></span>
+          <span class="signal-dot"></span>
+        </div>
+        <div class="status-copy">
+          <p class="status-label" id="overallLabel">Connecting</p>
+          <p class="status-summary" id="overallSummary">Waiting for the first probe.</p>
+        </div>
+        <dl class="quick-stats">
+          <div>
+            <dt>RPC Head</dt>
+            <dd id="headHeight">-</dd>
+          </div>
+          <div>
+            <dt>Head Age</dt>
+            <dd id="headAge">-</dd>
+          </div>
+          <div>
+            <dt>Scanner Lag</dt>
+            <dd id="scannerLag">-</dd>
+          </div>
+          <div>
+            <dt>Entities</dt>
+            <dd id="entityCount">-</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="live-grid">
+        <article class="primary-panel chain-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Chain Pulse</p>
+              <h2 id="chainTitle">RPC</h2>
+            </div>
+            <span class="state-pill" id="chainState">unknown</span>
+          </div>
+          <div class="block-strip" id="blockStrip" aria-hidden="true"></div>
+          <dl class="metric-grid">
+            <div>
+              <dt>Chain ID</dt>
+              <dd id="chainId">-</dd>
+            </div>
+            <div>
+              <dt>Latency</dt>
+              <dd id="chainLatency">-</dd>
+            </div>
+            <div>
+              <dt>Gas Used</dt>
+              <dd id="gasUsed">-</dd>
+            </div>
+            <div>
+              <dt>Last Hash</dt>
+              <dd class="mono truncate" id="blockHash">-</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="primary-panel scanner-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Scanner Drift</p>
+              <h2 id="scannerTitle">Explorer</h2>
+            </div>
+            <span class="state-pill" id="scannerState">unknown</span>
+          </div>
+          <div class="lag-meter" aria-hidden="true">
+            <span id="lagFill"></span>
+          </div>
+          <dl class="metric-grid">
+            <div>
+              <dt>Scanner Head</dt>
+              <dd id="scannerHeight">-</dd>
+            </div>
+            <div>
+              <dt>Indexed</dt>
+              <dd id="indexedRatio">-</dd>
+            </div>
+            <div>
+              <dt>Block Age</dt>
+              <dd id="scannerAge">-</dd>
+            </div>
+            <div>
+              <dt>API</dt>
+              <dd id="scannerApi">-</dd>
+            </div>
+          </dl>
+        </article>
+      </section>
+
+      <section class="constellation-section">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Service Constellation</p>
+            <h2>Responsive components</h2>
+          </div>
+          <p class="timestamp" id="updatedAt">-</p>
+        </div>
+        <canvas id="constellation" width="1200" height="520" aria-label="Interactive service constellation"></canvas>
+        <div class="service-list" id="serviceList"></div>
+      </section>
+
+      <section class="workbench">
+        <article class="decoder-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Decoder Playground</p>
+              <h2>Transaction lens</h2>
+            </div>
+            <button class="text-button" id="decodeButton" type="button">Decode</button>
+          </div>
+          <div class="decode-form">
+            <textarea id="decodeInput" spellcheck="false" placeholder="0x"></textarea>
+            <label>
+              <span>Chain ID</span>
+              <input id="decodeChainId" type="text" value="42069">
+            </label>
+          </div>
+          <pre class="json-output" id="decodeOutput">{ "status": "idle" }</pre>
+        </article>
+
+        <aside class="detail-panel" id="detailPanel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Selected Signal</p>
+              <h2 id="detailTitle">Nothing selected</h2>
+            </div>
+            <a class="text-button ghost" id="detailLink" href="#" target="_blank" rel="noreferrer">Open</a>
+          </div>
+          <pre class="json-output" id="detailJson">{}</pre>
+        </aside>
+      </section>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

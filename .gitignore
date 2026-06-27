@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.monitor-server.log
+.monitor-server.pid
+.DS_Store
