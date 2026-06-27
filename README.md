@@ -25,6 +25,19 @@ Open `http://127.0.0.1:4177`.
 The app has no runtime npm dependencies. It needs Node.js 20+ for native
 `fetch`.
 
+In the Codex desktop / WSL setup, the bundled Node runtime is Windows-native.
+Use the helper so the server survives the launching shell:
+
+```bash
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-dev.ps1
+```
+
+Stop it with:
+
+```bash
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/stop-dev.ps1
+```
+
 ## Configuration
 
 Optional environment variables:
