@@ -71,7 +71,7 @@ a {
 }
 
 .topbar-actions {
-  grid-template-columns: auto auto;
+  grid-template-columns: auto;
   align-items: center;
 }
 

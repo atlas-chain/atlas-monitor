@@ -20,28 +20,18 @@ const thresholds = {
   requestTimeoutMs: Number(process.env.REQUEST_TIMEOUT_MS || 6500),
 }
 
-const networks = {
-  braga: {
-    id: "braga",
-    label: "Braga",
-    chainId: "60138453102",
-    rpcUrl: "https://braga.hoodi.arkiv.network/rpc",
-    scannerUrl: "https://explorer.braga.hoodi.arkiv.network",
-    scannerApiUrl: "https://explorer.braga.hoodi.arkiv.network/api",
-    faucetUrl: "https://braga.hoodi.arkiv.network/faucet/",
-    notes: ["Scanner freshness is measured against the Braga Blockscout API."],
-  },
-  atlas: {
-    id: "atlas",
-    label: "Atlas",
-    chainId: "42069",
-    rpcUrl: "https://rpc.atlas.arkiv-global.net",
-    scannerUrl: process.env.ATLAS_SCANNER_URL || "",
-    scannerApiUrl: process.env.ATLAS_SCANNER_API_URL || "",
-    faucetUrl: process.env.ATLAS_FAUCET_URL || "",
-    notes: ["Public Atlas scanner URL is not known yet; set ATLAS_SCANNER_API_URL when it exists."],
-  },
+const atlasStack = {
+  id: "atlas",
+  label: "Atlas",
+  chainId: "42069",
+  rpcUrl: process.env.ATLAS_RPC_URL || "https://rpc.atlas.arkiv-global.net",
+  scannerUrl: process.env.ATLAS_SCANNER_URL || "https://scanner.atlas.arkiv-global.net",
+  scannerApiUrl: process.env.ATLAS_SCANNER_API_URL || "https://scanner.atlas.arkiv-global.net/api/blocks?limit=1",
+  faucetUrl: process.env.ATLAS_FAUCET_URL || "https://faucet.atlas.arkiv-global.net",
+  notes: ["Atlas scanner freshness is measured from /api/blocks?limit=1."],
 }
+
+const plannerUrl = process.env.PLANNER_URL || process.env.ATLAS_PLANNER_URL || ""
 
 const supportServices = [
   {
@@ -58,14 +48,14 @@ const supportServices = [
     url: process.env.DECODER_URL || "https://decoder.atlas.arkiv-global.net",
     path: "/status",
   },
-  {
+  ...(plannerUrl ? [{
     id: "planner",
     label: "Protocol Planner",
     kind: "status",
-    url: process.env.PLANNER_URL || process.env.ATLAS_PLANNER_URL || "",
+    url: plannerUrl,
     path: "/status",
     optional: true,
-  },
+  }] : []),
 ]
 
 const cache = new Map()
@@ -324,36 +314,31 @@ async function probeScanner(network, chainHeight) {
   }
 
   try {
-    const apiBase = network.scannerApiUrl.replace(/\/+$/, "")
-    const explorerBase = network.scannerUrl.replace(/\/+$/, "")
-    const [numberResult, blocksResult, indexingResult] = await Promise.allSettled([
-      timedFetch(`${apiBase}?module=block&action=eth_block_number`),
-      timedFetch(`${explorerBase}/api/v2/blocks?type=block`),
-      timedFetch(`${explorerBase}/api/v2/main-page/indexing-status`),
-    ])
-
-    if (numberResult.status === "rejected") {
-      throw numberResult.reason
+    const headResult = await timedFetch(network.scannerApiUrl)
+    if (!headResult.ok) {
+      throw new Error(`Scanner head HTTP ${headResult.status}`)
     }
-    if (!numberResult.value.ok) {
-      throw new Error(`Scanner head HTTP ${numberResult.value.status}`)
+    if (!headResult.body || typeof headResult.body !== "object") {
+      throw new Error("Scanner returned non-JSON response")
     }
 
-    const scannerHeight = toNumber(numberResult.value.body?.result)
-    const latestBlock = blocksResult.status === "fulfilled" && blocksResult.value.ok
-      ? blocksResult.value.body?.items?.[0]
-      : null
-    const timestamp = latestBlock?.timestamp || null
+    const names = Array.isArray(headResult.body.names) ? headResult.body.names : []
+    const firstBlock = Array.isArray(headResult.body.blocks) ? headResult.body.blocks[0] : null
+    const field = (name) => {
+      const index = names.indexOf(name)
+      return index >= 0 && Array.isArray(firstBlock) ? firstBlock[index] : null
+    }
+
+    const scannerHeight = toNumber(field("blockNumber"))
+    const timestamp = field("blockDate")
     const ageSeconds = secondsSince(timestamp)
     const lagBlocks = chainHeight != null && scannerHeight != null ? Math.max(0, chainHeight - scannerHeight) : null
-    const indexing = indexingResult.status === "fulfilled" && indexingResult.value.ok ? indexingResult.value.body : null
-    const indexingFinished = indexing?.finished_indexing_blocks ?? indexing?.finished_indexing ?? null
+    const indexingFinished = firstBlock != null
     const state = classifyScanner(lagBlocks, ageSeconds, indexingFinished, false, true)
-    const errors = []
-    if (blocksResult.status === "rejected") errors.push(`latest block: ${createErrorSummary(blocksResult.reason)}`)
-    if (blocksResult.status === "fulfilled" && !blocksResult.value.ok) errors.push(`latest block HTTP ${blocksResult.value.status}`)
-    if (indexingResult.status === "rejected") errors.push(`indexing: ${createErrorSummary(indexingResult.reason)}`)
-    if (indexingResult.status === "fulfilled" && !indexingResult.value.ok) errors.push(`indexing HTTP ${indexingResult.value.status}`)
+    const latestBlock = names.reduce((acc, name, index) => {
+      acc[name] = Array.isArray(firstBlock) ? firstBlock[index] : null
+      return acc
+    }, {})
 
     return {
       id: "scanner",
@@ -371,14 +356,17 @@ async function probeScanner(network, chainHeight) {
       timestamp,
       ageSeconds,
       indexingFinished,
-      indexedBlocksRatio: indexing?.indexed_blocks_ratio || null,
-      indexedInternalTransactionsRatio: indexing?.indexed_internal_transactions_ratio || null,
-      latestBlockHash: latestBlock?.hash || null,
-      errors,
+      indexedBlocksRatio: null,
+      indexedInternalTransactionsRatio: null,
+      latestBlockHash: null,
+      transactionCount: toNumber(field("transactionCount")),
+      totalGasUsed: toDecimalString(field("totalGasUsed")),
+      baseBlockFeeWei: toDecimalString(field("baseBlockFeeWei")),
+      blockTimeSeconds: toDecimalString(field("blockTimeSeconds")),
+      errors: [],
       raw: {
-        number: numberResult.value.body,
         latestBlock,
-        indexing,
+        response: headResult.body,
       },
     }
   } catch (error) {
@@ -468,7 +456,7 @@ async function probeFaucet(network) {
   }
 
   try {
-    const response = await timedFetch(network.faucetUrl)
+    const response = await timedFetch(withBaseUrl(network.faucetUrl, "/status"))
     const state = classifyService(response.ok, response.latencyMs, false, null)
     return {
       id: "faucet",
@@ -478,12 +466,11 @@ async function probeFaucet(network) {
       checkedAt,
       latencyMs: response.latencyMs,
       url: network.faucetUrl,
+      statusUrl: withBaseUrl(network.faucetUrl, "/status"),
       configured: true,
       httpStatus: response.status,
-      summary: {
-        surface: "HTML faucet",
-        apiHealth: "TODO: confirm public JSON health path",
-      },
+      summary: summarizeService("faucet", response.body),
+      raw: response.body,
       errors: response.ok ? [] : [`HTTP ${response.status}`],
     }
   } catch (error) {
@@ -523,6 +510,18 @@ function summarizeService(id, body) {
       trustedDefault: body.trustedProviderSigners?.default,
     }
   }
+  if (id === "faucet") {
+    return {
+      chainId: body.chainId,
+      faucetAddress: body.faucetAddress,
+      dripWei: body.dripWei,
+      cooldownSecs: body.cooldownSecs,
+      inFlight: body.inFlight,
+      queueCapacity: body.queueCapacity,
+      powBits: body.pow?.bits,
+      powPuzzles: body.pow?.puzzles,
+    }
+  }
   if (id === "planner") {
     return {
       service: body.service,
@@ -535,10 +534,9 @@ function summarizeService(id, body) {
 }
 
 function summarizeOverall(network, chain, scanner, services) {
-  const required = [chain]
-  if (network.scannerApiUrl) required.push(scanner)
+  const required = [chain, scanner]
   const requiredState = worstState(required)
-  const supportState = worstState(services.filter((service) => service.configured !== false || !service.optional))
+  const supportState = worstState(services)
   const state = requiredState !== "healthy" ? requiredState : supportState === "down" ? "degraded" : supportState
   const scannerText = scanner?.state === "healthy"
     ? `scanner lag ${scanner.lagBlocks ?? "?"} blocks`
@@ -555,8 +553,8 @@ function summarizeOverall(network, chain, scanner, services) {
   }
 }
 
-async function buildSnapshot(networkId) {
-  const network = networks[networkId] || networks.braga
+async function buildSnapshot() {
+  const network = atlasStack
   const cacheKey = network.id
   const cached = cache.get(cacheKey)
   if (cached && Date.now() - cached.createdAt < cacheTtlMs) {
@@ -572,19 +570,6 @@ async function buildSnapshot(networkId) {
   const services = [
     ...serviceResults,
     faucet,
-    {
-      id: "explorer",
-      label: `${network.label} Explorer`,
-      state: network.scannerUrl ? scanner.state : "unknown",
-      ok: network.scannerUrl ? scanner.ok : false,
-      checkedAt: scanner.checkedAt,
-      latencyMs: scanner.latencyMs,
-      url: network.scannerUrl || null,
-      configured: Boolean(network.scannerUrl),
-      summary: network.scannerUrl ? { lagBlocks: scanner.lagBlocks, indexedBlocksRatio: scanner.indexedBlocksRatio } : null,
-      errors: scanner.errors || [],
-      note: network.scannerUrl ? null : "Explorer URL is not configured.",
-    },
   ].sort((a, b) => stateRank(a.state) - stateRank(b.state) || a.label.localeCompare(b.label))
 
   const snapshot = {
@@ -594,9 +579,9 @@ async function buildSnapshot(networkId) {
       label: network.label,
       chainId: network.chainId,
       rpcUrl: network.rpcUrl,
-      scannerUrl: network.scannerUrl || null,
-      scannerApiUrl: network.scannerApiUrl || null,
-      faucetUrl: network.faucetUrl || null,
+      scannerUrl: network.scannerUrl,
+      scannerApiUrl: network.scannerApiUrl,
+      faucetUrl: network.faucetUrl,
       notes: network.notes,
     },
     thresholds,
@@ -685,20 +670,21 @@ async function handleRequest(req, res) {
 
     if (url.pathname === "/api/config") {
       json(res, 200, {
-        networks: Object.values(networks).map((network) => ({
-          id: network.id,
-          label: network.label,
-          chainId: network.chainId,
-          scannerConfigured: Boolean(network.scannerApiUrl),
-        })),
+        stack: {
+          id: atlasStack.id,
+          label: atlasStack.label,
+          chainId: atlasStack.chainId,
+          rpcUrl: atlasStack.rpcUrl,
+          scannerUrl: atlasStack.scannerUrl,
+          faucetUrl: atlasStack.faucetUrl,
+        },
         thresholds,
       })
       return
     }
 
     if (url.pathname === "/api/snapshot") {
-      const networkId = url.searchParams.get("network") || "braga"
-      json(res, 200, await buildSnapshot(networkId))
+      json(res, 200, await buildSnapshot())
       return
     }
 

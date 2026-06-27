@@ -1,7 +1,7 @@
 # Atlas Monitor
 
-A live cockpit for Atlas and Arkiv network components. It watches the chain
-head, scanner lag, payload provider, decoder, faucet, and optional protocol
+A live cockpit for the deployed Atlas stack. It watches the Atlas RPC head,
+Atlas scanner lag, payload provider, decoder, faucet, and optional protocol
 planner without needing an install step.
 
 The first health rule is intentionally strict: chain and scanner freshness
@@ -46,11 +46,12 @@ Optional environment variables:
 | --- | --- | --- |
 | `APP_HOST` / `HOST` | `127.0.0.1` | HTTP bind host |
 | `APP_PORT` / `PORT` | `4177` | HTTP bind port |
+| `ATLAS_RPC_URL` | `https://rpc.atlas.arkiv-global.net` | Atlas RPC URL |
 | `PAYLOAD_PROVIDER_URL` | `https://payload.atlas.arkiv-global.net` | Payload provider base URL |
 | `DECODER_URL` | `https://decoder.atlas.arkiv-global.net` | Transaction decoder base URL |
-| `ATLAS_SCANNER_URL` | unset | Atlas explorer UI URL |
-| `ATLAS_SCANNER_API_URL` | unset | Atlas explorer API URL |
-| `ATLAS_FAUCET_URL` | unset | Atlas faucet URL |
+| `ATLAS_SCANNER_URL` | `https://scanner.atlas.arkiv-global.net` | Atlas scanner UI URL |
+| `ATLAS_SCANNER_API_URL` | `https://scanner.atlas.arkiv-global.net/api/blocks?limit=1` | Atlas scanner head API |
+| `ATLAS_FAUCET_URL` | `https://faucet.atlas.arkiv-global.net` | Atlas faucet URL |
 | `PLANNER_URL` / `ATLAS_PLANNER_URL` | unset | Protocol planner base URL |
 | `CHAIN_FRESH_SECONDS` | `16` | Healthy chain-head age threshold |
 | `CHAIN_STALE_SECONDS` | `40` | Down chain-head age threshold |

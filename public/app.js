@@ -1,6 +1,5 @@
 const state = {
   config: null,
-  network: "braga",
   snapshot: null,
   selected: null,
   chainHistory: [],
@@ -10,7 +9,6 @@ const state = {
 }
 
 const els = {
-  networkTabs: document.querySelector("#networkTabs"),
   refreshButton: document.querySelector("#refreshButton"),
   signalCore: document.querySelector("#signalCore"),
   overallLabel: document.querySelector("#overallLabel"),
@@ -98,10 +96,10 @@ function serviceLine(service) {
     return `chain ${service.summary.defaultChainId}, ${formatBytes(service.summary.maxInputBytes)} max`
   }
   if (service.id === "faucet" && service.configured) {
-    return `${service.httpStatus || "-"} in ${service.latencyMs ?? "-"}ms`
+    return service.summary ? `${service.summary.inFlight}/${service.summary.queueCapacity} queued, PoW ${service.summary.powBits} bits` : `${service.httpStatus || "-"} in ${service.latencyMs ?? "-"}ms`
   }
-  if (service.id === "explorer" && service.summary) {
-    return `${service.summary.lagBlocks ?? "?"} blocks behind`
+  if (service.id === "scanner") {
+    return `${service.lagBlocks ?? "?"} blocks behind, ${service.transactionCount ?? 0} tx in head`
   }
   if (service.note) return service.note
   if (service.latencyMs != null) return `${service.latencyMs}ms`
@@ -119,28 +117,6 @@ async function fetchJson(url, options) {
     throw new Error(body.error || `HTTP ${response.status}`)
   }
   return body
-}
-
-function renderNetworkTabs() {
-  const networks = state.config?.networks || [
-    { id: "braga", label: "Braga" },
-    { id: "atlas", label: "Atlas" },
-  ]
-  els.networkTabs.innerHTML = ""
-  for (const network of networks) {
-    const button = document.createElement("button")
-    button.type = "button"
-    button.textContent = network.label
-    button.setAttribute("aria-pressed", String(network.id === state.network))
-    button.title = network.scannerConfigured ? "Scanner configured" : "Scanner URL missing"
-    button.addEventListener("click", () => {
-      state.network = network.id
-      state.selected = null
-      renderNetworkTabs()
-      void refresh()
-    })
-    els.networkTabs.append(button)
-  }
 }
 
 function rememberHeight(height, chainState) {
@@ -383,7 +359,7 @@ function distance(a, b) {
 async function refresh() {
   clearTimeout(state.refreshTimer)
   try {
-    const snapshot = await fetchJson(`/api/snapshot?network=${encodeURIComponent(state.network)}`)
+    const snapshot = await fetchJson("/api/snapshot")
     state.snapshot = snapshot
     if (!state.selected) state.selected = snapshot.chain
     if (state.selected) {
@@ -421,7 +397,6 @@ async function init() {
   } catch {
     state.config = null
   }
-  renderNetworkTabs()
   els.refreshButton.addEventListener("click", () => refresh())
   els.decodeButton.addEventListener("click", decodeTransaction)
   els.canvas.addEventListener("mousemove", (event) => {
