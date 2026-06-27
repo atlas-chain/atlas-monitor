@@ -31,6 +31,7 @@ const els = {
   indexedRatio: document.querySelector("#indexedRatio"),
   scannerAge: document.querySelector("#scannerAge"),
   scannerApi: document.querySelector("#scannerApi"),
+  scannerLatestTx: document.querySelector("#scannerLatestTx"),
   updatedAt: document.querySelector("#updatedAt"),
   canvas: document.querySelector("#constellation"),
   serviceList: document.querySelector("#serviceList"),
@@ -82,6 +83,11 @@ function formatBytes(value) {
   return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`
 }
 
+function shortHash(value) {
+  if (!value || value.length <= 18) return value || "-"
+  return `${value.slice(0, 10)}...${value.slice(-8)}`
+}
+
 function setStateClass(el, value) {
   el.className = `state-pill state-${value || "unknown"}`
   el.textContent = value || "unknown"
@@ -99,7 +105,8 @@ function serviceLine(service) {
     return service.summary ? `${service.summary.inFlight}/${service.summary.queueCapacity} queued, PoW ${service.summary.powBits} bits` : `${service.httpStatus || "-"} in ${service.latencyMs ?? "-"}ms`
   }
   if (service.id === "scanner") {
-    return `${service.lagBlocks ?? "?"} blocks behind, ${service.transactionCount ?? 0} tx in head`
+    const latest = service.latestTransaction?.hash ? `, latest ${shortHash(service.latestTransaction.hash)}` : ""
+    return `${service.lagBlocks ?? "?"} blocks behind, ${service.transactionCount ?? 0} tx in head${latest}`
   }
   if (service.note) return service.note
   if (service.latencyMs != null) return `${service.latencyMs}ms`
@@ -171,6 +178,15 @@ function renderSnapshot() {
   els.indexedRatio.textContent = scanner.indexedBlocksRatio ? `${Math.round(Number(scanner.indexedBlocksRatio) * 100)}%` : "-"
   els.scannerAge.textContent = formatSeconds(scanner.ageSeconds)
   els.scannerApi.textContent = scanner.configured ? "configured" : "missing"
+  if (scanner.latestTransaction?.decoderUrl) {
+    els.scannerLatestTx.textContent = shortHash(scanner.latestTransaction.hash)
+    els.scannerLatestTx.href = scanner.latestTransaction.decoderUrl
+    els.scannerLatestTx.style.visibility = "visible"
+  } else {
+    els.scannerLatestTx.textContent = "-"
+    els.scannerLatestTx.href = "#"
+    els.scannerLatestTx.style.visibility = "hidden"
+  }
   const lag = scanner.lagBlocks == null ? 0 : Math.min(100, (scanner.lagBlocks / snapshot.thresholds.scannerLaggingBlocks) * 100)
   els.lagFill.style.width = `${lag}%`
   els.updatedAt.textContent = new Date(snapshot.generatedAt).toLocaleTimeString()

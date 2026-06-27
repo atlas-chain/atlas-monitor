@@ -9,6 +9,7 @@ const publicDir = join(rootDir, "public")
 
 const host = process.env.HOST || process.env.APP_HOST || "127.0.0.1"
 const port = Number(process.env.PORT || process.env.APP_PORT || 4177)
+const defaultScannerUrl = "https://scanner.atlas.arkiv-global.net"
 
 const thresholds = {
   chainFreshSeconds: Number(process.env.CHAIN_FRESH_SECONDS || 16),
@@ -25,8 +26,9 @@ const atlasStack = {
   label: "Atlas",
   chainId: "42069",
   rpcUrl: process.env.ATLAS_RPC_URL || "https://rpc.atlas.arkiv-global.net",
-  scannerUrl: process.env.ATLAS_SCANNER_URL || "https://scanner.atlas.arkiv-global.net",
-  scannerApiUrl: process.env.ATLAS_SCANNER_API_URL || "https://scanner.atlas.arkiv-global.net/api/blocks?limit=1",
+  scannerUrl: process.env.ATLAS_SCANNER_URL || defaultScannerUrl,
+  scannerApiUrl: process.env.ATLAS_SCANNER_API_URL || `${defaultScannerUrl}/api/blocks?limit=1`,
+  scannerTransactionsApiUrl: process.env.ATLAS_SCANNER_TRANSACTIONS_API_URL || `${defaultScannerUrl}/api/transactions?limit=1`,
   faucetUrl: process.env.ATLAS_FAUCET_URL || "https://faucet.atlas.arkiv-global.net",
   notes: ["Atlas scanner freshness is measured from /api/blocks?limit=1."],
 }
@@ -170,6 +172,17 @@ function withBaseUrl(base, path) {
   return `${base.replace(/\/+$/, "")}${path}`
 }
 
+function withQueryParam(base, key, value) {
+  if (!base || !value) return ""
+  try {
+    const url = new URL(base)
+    url.searchParams.set(key, value)
+    return url.toString()
+  } catch {
+    return `${base.replace(/\/+$/, "")}/?${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+  }
+}
+
 function createErrorSummary(error) {
   if (!error) return null
   if (error.name === "AbortError") return `Timed out after ${thresholds.requestTimeoutMs}ms`
@@ -295,7 +308,21 @@ async function probeChain(network) {
   }
 }
 
-async function probeScanner(network, chainHeight) {
+function latestTransactionFromScanner(body, decoderUrl) {
+  const transaction = Array.isArray(body?.transactions) ? body.transactions[0] : null
+  if (!transaction?.hash) return null
+  return {
+    hash: transaction.hash,
+    blockNumber: toNumber(transaction.blockNumber),
+    timestamp: transaction.blockDate || null,
+    from: transaction.from || null,
+    to: transaction.to || null,
+    operationSummary: Array.isArray(transaction.operationsSummary) ? transaction.operationsSummary : [],
+    decoderUrl: withQueryParam(decoderUrl, "tx", transaction.hash),
+  }
+}
+
+async function probeScanner(network, chainHeight, decoderUrl) {
   const checkedAt = nowIso()
   const started = performance.now()
   if (!network.scannerApiUrl) {
@@ -314,7 +341,15 @@ async function probeScanner(network, chainHeight) {
   }
 
   try {
-    const headResult = await timedFetch(network.scannerApiUrl)
+    const [headSettled, txSettled] = await Promise.allSettled([
+      timedFetch(network.scannerApiUrl),
+      network.scannerTransactionsApiUrl ? timedFetch(network.scannerTransactionsApiUrl) : Promise.resolve(null),
+    ])
+    if (headSettled.status === "rejected") {
+      throw headSettled.reason
+    }
+
+    const headResult = headSettled.value
     if (!headResult.ok) {
       throw new Error(`Scanner head HTTP ${headResult.status}`)
     }
@@ -339,6 +374,15 @@ async function probeScanner(network, chainHeight) {
       acc[name] = Array.isArray(firstBlock) ? firstBlock[index] : null
       return acc
     }, {})
+    const latestTransaction = txSettled.status === "fulfilled" && txSettled.value?.ok
+      ? latestTransactionFromScanner(txSettled.value.body, decoderUrl)
+      : null
+    const errors = []
+    if (txSettled.status === "rejected") {
+      errors.push(`transactions: ${createErrorSummary(txSettled.reason)}`)
+    } else if (txSettled.value && !txSettled.value.ok) {
+      errors.push(`transactions: HTTP ${txSettled.value.status}`)
+    }
 
     return {
       id: "scanner",
@@ -349,6 +393,7 @@ async function probeScanner(network, chainHeight) {
       latencyMs: Math.round(performance.now() - started),
       url: network.scannerUrl,
       apiUrl: network.scannerApiUrl,
+      transactionsApiUrl: network.scannerTransactionsApiUrl,
       configured: true,
       height: scannerHeight,
       chainHeight,
@@ -360,13 +405,15 @@ async function probeScanner(network, chainHeight) {
       indexedInternalTransactionsRatio: null,
       latestBlockHash: null,
       transactionCount: toNumber(field("transactionCount")),
+      latestTransaction,
       totalGasUsed: toDecimalString(field("totalGasUsed")),
       baseBlockFeeWei: toDecimalString(field("baseBlockFeeWei")),
       blockTimeSeconds: toDecimalString(field("blockTimeSeconds")),
-      errors: [],
+      errors,
       raw: {
         latestBlock,
         response: headResult.body,
+        latestTransaction: txSettled.status === "fulfilled" ? txSettled.value?.body ?? null : null,
       },
     }
   } catch (error) {
@@ -379,6 +426,7 @@ async function probeScanner(network, chainHeight) {
       latencyMs: Math.round(performance.now() - started),
       url: network.scannerUrl,
       apiUrl: network.scannerApiUrl,
+      transactionsApiUrl: network.scannerTransactionsApiUrl,
       configured: true,
       error: createErrorSummary(error),
       errors: [createErrorSummary(error)],
@@ -555,6 +603,7 @@ function summarizeOverall(network, chain, scanner, services) {
 
 async function buildSnapshot() {
   const network = atlasStack
+  const decoderBase = supportServices.find((service) => service.id === "decoder")?.url
   const cacheKey = network.id
   const cached = cache.get(cacheKey)
   if (cached && Date.now() - cached.createdAt < cacheTtlMs) {
@@ -563,7 +612,7 @@ async function buildSnapshot() {
 
   const chain = await probeChain(network)
   const [scanner, serviceResults, faucet] = await Promise.all([
-    probeScanner(network, chain.height),
+    probeScanner(network, chain.height, decoderBase),
     Promise.all(supportServices.map(probeSupportService)),
     probeFaucet(network),
   ])
@@ -581,6 +630,7 @@ async function buildSnapshot() {
       rpcUrl: network.rpcUrl,
       scannerUrl: network.scannerUrl,
       scannerApiUrl: network.scannerApiUrl,
+      scannerTransactionsApiUrl: network.scannerTransactionsApiUrl,
       faucetUrl: network.faucetUrl,
       notes: network.notes,
     },
@@ -676,6 +726,7 @@ async function handleRequest(req, res) {
           chainId: atlasStack.chainId,
           rpcUrl: atlasStack.rpcUrl,
           scannerUrl: atlasStack.scannerUrl,
+          scannerTransactionsApiUrl: atlasStack.scannerTransactionsApiUrl,
           faucetUrl: atlasStack.faucetUrl,
         },
         thresholds,

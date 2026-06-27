@@ -11,6 +11,7 @@ services:
       ATLAS_RPC_URL: ${ATLAS_RPC_URL:-https://rpc.atlas.arkiv-global.net}
       ATLAS_SCANNER_URL: ${ATLAS_SCANNER_URL:-https://scanner.atlas.arkiv-global.net}
       ATLAS_SCANNER_API_URL: ${ATLAS_SCANNER_API_URL:-https://scanner.atlas.arkiv-global.net/api/blocks?limit=1}
+      ATLAS_SCANNER_TRANSACTIONS_API_URL: ${ATLAS_SCANNER_TRANSACTIONS_API_URL:-https://scanner.atlas.arkiv-global.net/api/transactions?limit=1}
       PAYLOAD_PROVIDER_URL: ${PAYLOAD_PROVIDER_URL:-https://payload.atlas.arkiv-global.net}
       DECODER_URL: ${DECODER_URL:-https://decoder.atlas.arkiv-global.net}
       ATLAS_FAUCET_URL: ${ATLAS_FAUCET_URL:-https://faucet.atlas.arkiv-global.net}
