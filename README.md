@@ -38,6 +38,20 @@ Stop it with:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/stop-dev.ps1
 ```
 
+## Docker
+
+```bash
+docker compose up --build
+```
+
+Open `http://127.0.0.1:4177`.
+
+Published images are expected at:
+
+```bash
+docker pull ghcr.io/atlas-chain/atlas-monitor:main
+```
+
 ## Configuration
 
 Optional environment variables:

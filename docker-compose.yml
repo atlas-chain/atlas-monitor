@@ -1,0 +1,18 @@
+services:
+  monitor:
+    build: .
+    image: atlas-monitor
+    container_name: atlas-monitor
+    ports:
+      - "4177:4177"
+    environment:
+      APP_HOST: "0.0.0.0"
+      APP_PORT: "4177"
+      ATLAS_RPC_URL: ${ATLAS_RPC_URL:-https://rpc.atlas.arkiv-global.net}
+      ATLAS_SCANNER_URL: ${ATLAS_SCANNER_URL:-https://scanner.atlas.arkiv-global.net}
+      ATLAS_SCANNER_API_URL: ${ATLAS_SCANNER_API_URL:-https://scanner.atlas.arkiv-global.net/api/blocks?limit=1}
+      PAYLOAD_PROVIDER_URL: ${PAYLOAD_PROVIDER_URL:-https://payload.atlas.arkiv-global.net}
+      DECODER_URL: ${DECODER_URL:-https://decoder.atlas.arkiv-global.net}
+      ATLAS_FAUCET_URL: ${ATLAS_FAUCET_URL:-https://faucet.atlas.arkiv-global.net}
+      ATLAS_PLANNER_URL: ${ATLAS_PLANNER_URL:-}
+    restart: unless-stopped

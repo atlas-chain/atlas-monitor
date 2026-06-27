@@ -1,0 +1,9 @@
+.git
+.github
+.monitor-server.log
+.monitor-server.err.log
+.monitor-server.pid
+node_modules
+dist
+Dockerfile
+docker-compose.yml
