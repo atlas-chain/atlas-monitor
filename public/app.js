@@ -41,6 +41,7 @@ const els = {
   detailTitle: document.querySelector("#detailTitle"),
   detailLink: document.querySelector("#detailLink"),
   detailJson: document.querySelector("#detailJson"),
+  serviceLinks: document.querySelector("#serviceLinks"),
 }
 
 const colors = {
@@ -108,6 +109,39 @@ function serviceLine(service) {
 
 function safeJson(value) {
   return JSON.stringify(value, null, 2)
+}
+
+function configuredLinks() {
+  const config = state.config
+  if (!config?.stack) return []
+  const services = config.services || []
+  const serviceUrl = (id) => services.find((service) => service.id === id)?.url
+  return [
+    { label: "RPC", url: config.stack.rpcUrl },
+    { label: "Scanner", url: config.stack.scannerUrl },
+    { label: "Payload", url: serviceUrl("payload") },
+    { label: "Decoder", url: serviceUrl("decoder") },
+    { label: "Faucet", url: config.stack.faucetUrl },
+    { label: "Planner", url: serviceUrl("planner") },
+  ].filter((link) => link.url)
+}
+
+function renderServiceLinks() {
+  els.serviceLinks.innerHTML = ""
+  const links = configuredLinks()
+  if (!links.length) {
+    els.serviceLinks.hidden = true
+    return
+  }
+  els.serviceLinks.hidden = false
+  for (const link of links) {
+    const anchor = document.createElement("a")
+    anchor.href = link.url
+    anchor.target = "_blank"
+    anchor.rel = "noreferrer"
+    anchor.textContent = link.label
+    els.serviceLinks.append(anchor)
+  }
 }
 
 async function fetchJson(url, options) {
@@ -397,6 +431,7 @@ async function init() {
   } catch {
     state.config = null
   }
+  renderServiceLinks()
   els.refreshButton.addEventListener("click", () => refresh())
   els.decodeButton.addEventListener("click", decodeTransaction)
   els.canvas.addEventListener("mousemove", (event) => {

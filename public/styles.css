@@ -52,6 +52,7 @@ a {
 
 .topbar,
 .status-band,
+.service-links,
 .panel-heading,
 .section-heading,
 .topbar-actions,
@@ -253,6 +254,31 @@ dd {
   color: var(--ink);
   font-size: 1rem;
   font-weight: 800;
+}
+
+.service-links {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.service-links a {
+  min-width: 0;
+  min-height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(8, 8, 7, 0.42);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.service-links a:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
 }
 
 .live-grid {
@@ -489,6 +515,7 @@ input {
 
   .quick-stats,
   .metric-grid,
+  .service-links,
   .service-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -504,6 +531,7 @@ input {
   .topbar-actions,
   .quick-stats,
   .metric-grid,
+  .service-links,
   .service-list,
   .decode-form {
     grid-template-columns: 1fr;

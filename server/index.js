@@ -678,6 +678,11 @@ async function handleRequest(req, res) {
           scannerUrl: atlasStack.scannerUrl,
           faucetUrl: atlasStack.faucetUrl,
         },
+        services: supportServices.map((service) => ({
+          id: service.id,
+          label: service.label,
+          url: service.url,
+        })),
         thresholds,
       })
       return
